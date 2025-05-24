@@ -3,6 +3,40 @@
   hosts: all
   become: yes
   tasks:
+    - name: Install Docker on Ubuntu
+      when: ansible_distribution == 'Ubuntu' or ansible_distribution == "Debian"
+      block:
+        - name: Update apt package cache
+          apt:
+            update_cache: yes
+
+        - name: Install dependencies
+          apt:
+            name:
+              - apt-transport-https
+              - ca-certificates
+              - curl
+              - software-properties-common
+
+        - name: Add Docker GPG key
+          apt_key:
+            url: https://download.docker.com/linux/ubuntu/gpg
+            state: present
+
+        - name: Add Docker APT repository
+          apt_repository:
+            repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable
+            state: present
+
+        - name: Update apt package cache (again)
+          apt:
+            update_cache: yes
+
+        - name: Install Docker
+          apt:
+            name: docker-ce
+            state: present
+
     - name: Install Docker on CentOS
       when: ansible_distribution == 'CentOS'
       block:
