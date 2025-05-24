@@ -1,0 +1,81 @@
+---
+- name: Install Docker
+  hosts: all
+  become: yes
+  tasks:
+    - name: Install Docker on CentOS
+      when: ansible_distribution == 'CentOS'
+      block:
+        - name: Install required packages
+          yum:
+            name:
+              - yum-utils
+              - device-mapper-persistent-data
+              - lvm2
+            state: present
+
+        - name: Add Docker repository
+          get_url:
+            url: https://download.docker.com/linux/centos/docker-ce.repo
+            dest: /etc/yum.repos.d/docker-ce.repo
+
+        - name: Install Docker packages
+          yum:
+            name:
+              - docker-ce
+            state: present
+
+    - name: Ensure docker group exists
+      group:
+        name: docker
+        state: present
+
+    - name: Add user in docker group
+      user:
+        name: "{{ ansible_user }}"
+        groups: docker
+        append: yes
+
+    - name: Start docker.service
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Check docker
+      command: "docker --version"
+
+- name: Launch script in container
+  hosts: all
+  tasks:
+    - name: Copy script
+      copy:
+        src: ./script.py
+        dest: ./script.py
+
+    - name: Copy Dockerfile
+      copy:
+        src: ./Dockerfile
+        dest: ./Dockerfile
+
+    - name: Reset_connection
+      meta:
+        reset_connection
+
+    - name: Build image
+      command: "docker build -t test-telecom ."
+
+    - name: Run container
+      command: "docker run --name test-telecom-container test-telecom"
+
+    - name: Check exit code
+      command: "docker inspect test-telecom-container --format='{% raw %}{{.State.ExitCode}}{% endraw %}'"
+      register: exitcode
+
+    - name: Check script output
+      command: "docker logs test-telecom-container"
+      register: output
+
+    - debug: msg="ExitCode - {{ exitcode.stdout_lines }}"
+
+    - debug: msg="{{  output }}"
